@@ -2,9 +2,6 @@ package com.Hiarpa.awsimageupload.datastore;
 
 import com.Hiarpa.awsimageupload.profile.UserProfile;
 import org.springframework.stereotype.Repository;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,5 +19,15 @@ public class FakeUserProfileDataStore {
 
     public List<UserProfile> getUserProfiles(){
         return USER_PROFILES;
+    }
+
+    public boolean checkUserId(UUID userId){
+        boolean exists = false;
+        for(UserProfile index: USER_PROFILES){
+            if(index.getUserProfileId() == userId){
+                exists = true;
+            }
+        }
+        return exists;
     }
 }
