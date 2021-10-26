@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import static org.apache.http.entity.ContentType.*;
 import java.io.IOException;
 import java.util.*;
 
@@ -29,36 +30,44 @@ public class UserProfileService {
     public void uploadUserProfileImage(UUID userProfileId, MultipartFile file) {
         isFileEmpty(file);
         isImage(file);
-        userExistsById(userProfileId);
+
+        UserProfile user = getUserProfileOrThrow(userProfileId);
 
         Map<String, String> metadata = extractMetadata(file);
 
-        String path = String.format("%s/%s", BucketName.PROFILE_IMAGE.getBucketName(), userProfileId);
-        String filename = String.format("%s-%s", file.getName(), UUID.randomUUID());
+        String path = String.format("%s/%s", BucketName.PROFILE_IMAGE.getBucketName(), user.getUserProfileId());
+        String filename = String.format("%s-%s", file.getOriginalFilename(), UUID.randomUUID());
 
         try {
             fileStore.save(path, filename, Optional.of(metadata),file.getInputStream());
+            user.setUserProfileImageLink(filename);
         } catch (IOException e){
             throw new IllegalStateException(e);
         }
     }
 
+    private UserProfile getUserProfileOrThrow(UUID userProfileId) {
+        return userProfileDataAccessService
+                .getUserProfiles()
+                .stream()
+                .filter(userProfile -> userProfile.getUserProfileId().equals(userProfileId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(String.format("User profile %s not found", userProfileId)));
+    }
+
     private Map<String, String> extractMetadata(MultipartFile file) {
         Map<String, String> metadata = new HashMap<>();
         metadata.put("Content-Type", file.getContentType());
-        metadata.put("Content-Type", String.valueOf(file.getSize()));
+        metadata.put("Content-Length", String.valueOf(file.getSize()));
         return metadata;
     }
 
-    private void userExistsById(UUID userProfileId) {
-        if(!userProfileDataAccessService.checkUserExistsById(userProfileId)){
-            throw new IllegalStateException(String.format("User profile %s not found",userProfileId));
-        }
-    }
-
     private void isImage(MultipartFile file) {
-        if(file.getContentType().equals(ContentType.IMAGE_PNG) || file.getContentType().equals(ContentType.IMAGE_PNG)|| file.getContentType().equals(ContentType.IMAGE_GIF)){
-            throw new IllegalStateException("The file must be an image[" + file.getContentType() + "]");
+        if (!Arrays.asList(
+                IMAGE_JPEG.getMimeType(),
+                IMAGE_PNG.getMimeType(),
+                IMAGE_GIF.getMimeType()).contains(file.getContentType())) {
+            throw new IllegalStateException("File must be an image [" + file.getContentType() + "]");
         }
     }
 
@@ -67,4 +76,6 @@ public class UserProfileService {
             throw new IllegalStateException("The file is empty");
         }
     }
+
+
 }
